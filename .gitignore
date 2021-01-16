@@ -1,2 +1,5 @@
 *.pyc
 data/
+
+# virtual environments
+hw*/venv/

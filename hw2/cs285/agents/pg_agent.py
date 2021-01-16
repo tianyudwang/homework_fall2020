@@ -1,8 +1,11 @@
 import numpy as np
+import functools
+from itertools import accumulate
 
 from .base_agent import BaseAgent
 from cs285.policies.MLP_policy import MLPPolicyPG
 from cs285.infrastructure.replay_buffer import ReplayBuffer
+from cs285.infrastructure import utils
 
 
 class PGAgent(BaseAgent):
@@ -46,7 +49,7 @@ class PGAgent(BaseAgent):
 
         # TODO: step 3: use all datapoints (s_t, a_t, q_t, adv_t) to update the PG actor/policy
         ## HINT: `train_log` should be returned by your actor update method
-        train_log = TODO
+        train_log = self.actor.update(observations, actions, advantages, q_values)
 
         return train_log
 
@@ -91,7 +94,7 @@ class PGAgent(BaseAgent):
             ## have the same mean and standard deviation as the current batch of q_values
             baselines = baselines_unnormalized * np.std(q_values) + np.mean(q_values)
             ## TODO: compute advantage estimates using q_values and baselines
-            advantages = TODO
+            advantages = q_values - baselines
 
         # Else, just set the advantage to [Q]
         else:
@@ -102,7 +105,7 @@ class PGAgent(BaseAgent):
             ## TODO: standardize the advantages to have a mean of zero
             ## and a standard deviation of one
             ## HINT: there is a `normalize` function in `infrastructure.utils`
-            advantages = TODO
+            advantages = utils.normalize(advantages, np.mean(advantages), np.std(advantages))
 
         return advantages
 
@@ -131,8 +134,16 @@ class PGAgent(BaseAgent):
         # TODO: create list_of_discounted_returns
         # Hint: note that all entries of this output are equivalent
             # because each sum is from 0 to T (and doesnt involve t)
-
-        return list_of_discounted_returns
+        #gammas = np.ones(len(rewards)) * self.gamma
+        #gammas[0] = 1.0
+        #gammas = np.cumprod(gammas)
+        #discounted_returns = np.sum(gammas * np.array(rewards))
+        #list_of_discounted_returns = [discounted_returns.item()] * len(rewards)
+        discounted_return = functools.reduce(
+            lambda ret, reward: ret * self.gamma + reward,
+            reversed(rewards),
+        )
+        return [discounted_return] * len(rewards)
 
     def _discounted_cumsum(self, rewards):
         """
@@ -146,6 +157,13 @@ class PGAgent(BaseAgent):
             # because the summation happens over [t, T] instead of [0, T]
         # HINT2: it is possible to write a vectorized solution, but a solution
             # using a for loop is also fine
-
-        return list_of_discounted_cumsums
+        #gammas = np.ones(len(rewards)) * self.gamma
+        #gammas[0] = 1.0
+        #gammas = np.cumprod(gammas)
+        #list_of_discounted_cumsums = np.cumsum(gammas * np.array(rewards))
+        #return list_of_discounted_cumsums
+        return list(accumulate(
+            reversed(rewards),
+            lambda ret, reward: ret * self.gamma + reward,
+        ))[::-1]
 
